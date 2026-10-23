@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TraceNova — Precision Number Intelligence</title>
+<meta name="description" content="Trace, verify and locate phone numbers in real time. Network intelligence, risk scoring and live positioning." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          display: ['"Space Grotesk"', 'Inter', 'sans-serif'],
+        },
+        colors: {
+          brand: {
+            DEFAULT: '#22d3ee', // cyan-400
+            400: '#22d3ee',
+            500: '#06b6d4',
+            600: '#0891b2',
+          },
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  :root { color-scheme: dark; }
+  html, body { background:#07090d; }
+  body { font-family:'Inter',system-ui,sans-serif; }
+
+  /* Hero grid + glow */
+  .grid-bg{
+    background-image:
+      linear-gradient(rgba(34,211,238,.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34,211,238,.06) 1px, transparent 1px);
+    background-size:44px 44px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  }
+  .glow{ box-shadow: 0 0 60px -12px rgba(34,211,238,.45); }
+  .card{ background:linear-gradient(180deg, rgba(24,28,34,.9), rgba(15,18,23,.9)); border:1px solid rgba(255,255,255,.07); backdrop-filter:blur(8px); }
+
+  .focusable:focus{ outline:none; box-shadow:0 0 0 2px #07090d, 0 0 0 4px rgba(34,211,238,.6); }
+
+  /* Radar */
+  .radar-wrap{ position:relative; border-radius:9999px; overflow:hidden; }
+  .sweep{
+    position:absolute; inset:0; border-radius:9999px;
+    background: conic-gradient(from 0deg, rgba(34,211,238,0) 0deg, rgba(34,211,238,.35) 40deg, rgba(34,211,238,0) 90deg);
+    animation: spin 3.4s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+
+  .ping-ring{ position:absolute; border:1.5px solid rgba(34,211,238,.6); border-radius:9999px; animation: pingout 2.6s ease-out infinite; }
+  @keyframes pingout{ 0%{ transform:scale(.4); opacity:.9;} 100%{ transform:scale(2.6); opacity:0;} }
+
+  .blip{ position:absolute; width:14px; height:14px; margin:-7px; border-radius:9999px; background:#22d3ee; box-shadow:0 0 14px 3px rgba(34,211,238,.9); transition: all .6s cubic-bezier(.2,.8,.2,1); }
+
+  .scanline{ position:absolute; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, rgba(34,211,238,.5), transparent); animation: scan 4s linear infinite; }
+  @keyframes scan{ 0%{ top:0; } 100%{ top:100%; } }
+
+  @keyframes fadeup{ from{ opacity:0; transform:translateY(14px);} to{ opacity:1; transform:none;} }
+  .fadeup{ animation: fadeup .5s ease both; }
+  @keyframes popin{ from{ opacity:0; transform:scale(.9);} to{ opacity:1; transform:none;} }
+  .popin{ animation: popin .35s ease both; }
+
+  .toast{ animation: fadeup .3s ease both; }
+
+  /* Feed scrollbar */
+  .feed::-webkit-scrollbar{ width:6px; }
+  .feed::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.12); border-radius:9999px; }
+
+  .ring-concentric{ position:absolute; inset:0; border-radius:9999px; }
+  .dot-pulse{ animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+
+  .bar{ transition: height .4s ease, background .4s ease; }
+</style>
+</head>
+
+<body class="text-zinc-200 antialiased min-h-screen flex flex-col">
+
+<!-- ===== NAV ===== -->
+<header class="sticky top-0 z-40 border-b border-white/5 bg-[#07090d]/80 backdrop-blur-md">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+    <a href="#" class="flex items-center gap-2.5 group" onclick="goHero(event)">
+      <span class="grid place-items-center w-9 h-9 rounded-xl bg-brand/10 border border-brand/30 text-brand glow">
+        <i data-lucide="crosshair" class="w-5 h-5"></i>
+      </span>
+      <span class="font-display font-700 text-lg tracking-tight text-white">Trace<span class="text-brand">Nova</span></span>
+    </a>
+    <nav class="hidden md:flex items-center gap-7 text-sm text-zinc-400">
+      <a href="#features" class="hover:text-white transition-colors">How it works</a>
+      <a href="#" class="hover:text-white transition-colors" onclick="startTrace(event)">Track a number</a>
+      <a href="#pricing" class="hover:text-white transition-colors">Pricing</a>
+      <a href="#contact" class="hover:text-white transition-colors">Contact</a>
+    </nav>
+    <div class="flex items-center gap-2">
+      <a id="waNav" href="#" target="_blank" rel="noopener" class="hidden sm:inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-white/10 text-zinc-300 hover:bg-white/5 hover:text-white transition-colors">
+        <i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp
+      </a>
+      <button onclick="startTrace(event)" class="inline-flex items-center gap-2 text-sm px-4 h-9 rounded-lg bg-brand text-[#06121a] font-semibold hover:bg-brand-400 transition-colors focusable">
+        Start tracing <i data-lucide="arrow-right" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="flex-1">
+
+<!-- ===== HERO ===== -->
+<section id="hero" class="relative overflow-hidden">
+  <div class="absolute inset-0 grid-bg pointer-events-none"></div>
+  <div class="relative max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-20 md:pt-24 md:pb-28 grid lg:grid-cols-[1.1fr_.9fr] gap-12 items-center">
+    <div class="fadeup">
+      <span class="inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border border-brand/30 bg-brand/10 text-brand">
+        <span class="w-1.5 h-1.5 rounded-full bg-brand dot-pulse"></span> Real-time network intelligence
+      </span>
+      <h1 class="mt-6 font-display font-700 text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tight text-white">
+        Find. Verify.<br><span class="text-brand">Locate.</span> Any number.
+      </h1>
+      <p class="mt-5 text-lg text-zinc-400 max-w-xl">
+        TraceNova locks onto a phone number, identifies its network and carrier, scores its risk,
+        and streams its live position — in minutes, not days.
+      </p>
+      <div class="mt-8 flex flex-wrap items-center gap-3">
+        <button onclick="startTrace(event)" class="inline-flex items-center gap-2 px-6 h-12 rounded-xl bg-brand text-[#06121a] font-semibold hover:bg-brand-400 transition-all hover:-translate-y-0.5 focusable">
+          Track a number <i data-lucide="arrow-right" class="w-5 h-5"></i>
+        </button>
+        <a href="#features" class="inline-flex items-center gap-2 px-6 h-12 rounded-xl border border-white/10 text-zinc-200 hover:bg-white/5 transition-colors">
+          See how it works
+        </a>
+      </div>
+
+      <dl class="mt-12 grid grid-cols-3 gap-6 max-w-lg">
+        <div>
+          <dt class="text-2xl font-display font-700 text-white">1.2M+</dt>
+          <dd class="text-sm text-zinc-500 mt-1">Numbers traced</dd>
+        </div>
+        <div>
+          <dt class="text-2xl font-display font-700 text-white">98.4%</dt>
+          <dd class="text-sm text-zinc-500 mt-1">Position accuracy</dd>
+        </div>
+        <div>
+          <dt class="text-2xl font-display font-700 text-white">&lt;4h</dt>
+          <dd class="text-sm text-zinc-500 mt-1">Avg. delivery</dd>
+        </div>
+      </dl>
+    </div>
+
+    <!-- Live preview card -->
+    <div class="fadeup" style="animation-delay:.1s">
+      <div class="card rounded-2xl p-5 glow relative overflow-hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2 text-sm font-medium text-zinc-300">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 dot-pulse"></span> Live trace
+          </div>
+          <span class="text-xs text-zinc-500 font-mono">NG·LAGOS</span>
+        </div>
+        <div class="relative aspect-square rounded-xl bg-[#0b0f14] border border-white/5 overflow-hidden grid-bg">
+          <div class="absolute inset-[14%]">
+            <div class="sweep"></div>
+            <div class="ring-concentric" style="box-shadow: inset 0 0 0 1px rgba(34,211,238,.18)"></div>
+            <div class="ring-concentric scale-[.66]" style="box-shadow: inset 0 0 0 1px rgba(34,211,238,.16)"></div>
+            <div class="ring-concentric scale-[.33]" style="box-shadow: inset 0 0 0 1px rgba(34,211,238,.16)"></div>
+            <div class="absolute inset-x-0 top-1/2 h-px bg-brand/20"></div>
+            <div class="absolute inset-y-0 left-1/2 w-px bg-brand/20"></div>
+            <div class="ping-ring" style="width:60px;height:60px;left:calc(50% - 30px);top:calc(50% - 30px)"></div>
+            <div class="blip" style="left:52%;top:46%"></div>
+          </div>
+        </div>
+        <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+          <div class="rounded-lg bg-white/5 border border-white/5 py-2.5">
+            <div class="text-brand font-display font-700">LOCKED</div>
+            <div class="text-[11px] text-zinc-500 mt-0.5">Signal</div>
+          </div>
+          <div class="rounded-lg bg-white/5 border border-white/5 py-2.5">
+            <div class="text-white font-display font-700">24m</div>
+            <div class="text-[11px] text-zinc-500 mt-0.5">Accuracy</div>
+          </div>
+          <div class="rounded-lg bg-white/5 border border-white/5 py-2.5">
+            <div class="text-white font-display font-700">MTN</div>
+            <div class="text-[11px] text-zinc-500 mt-0.5">Network</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FEATURES ===== -->
+<section id="features" class="border-t border-white/5 bg-[#0a0d12]">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-20">
+    <div class="max-w-2xl">
+      <h2 class="font-display font-700 text-3xl sm:text-4xl tracking-tight text-white">Intelligence, not guesses.</h2>
+      <p class="mt-3 text-zinc-400">Every trace fuses carrier signalling, tower geometry and device telemetry into one verifiable picture.</p>
+    </div>
+    <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div class="card rounded-2xl p-6 hover:border-brand/30 transition-colors">
+        <div class="w-11 h-11 rounded-xl bg-brand/10 border border-brand/20 grid place-items-center text-brand"><i data-lucide="map-pin" class="w-6 h-6"></i></div>
+        <h3 class="mt-4 font-600 text-white">Live positioning</h3>
+        <p class="mt-2 text-sm text-zinc-400">Streaming coordinates with tightening accuracy, last-ping timing and tower ID.</p>
+      </div>
+      <div class="card rounded-2xl p-6 hover:border-brand/30 transition-colors">
+        <div class="w-11 h-11 rounded-xl bg-brand/10 border border-brand/20 grid place-items-center text-brand"><i data-lucide="shield-check" class="w-6 h-6"></i></div>
+        <h3 class="mt-4 font-600 text-white">Risk scoring</h3>
+        <p class="mt-2 text-sm text-zinc-400">Spam, fraud and churn signals surfaced so you know who's calling before you trust them.</p>
+      </div>
+      <div class="card rounded-2xl p-6 hover:border-brand/30 transition-colors">
+        <div class="w-11 h-11 rounded-xl bg-brand/10 border border-brand/20 grid place-items-center text-brand"><i data-lucide="radio-tower" class="w-6 h-6"></i></div>
+        <h3 class="mt-4 font-600 text-white">Network decode</h3>
+        <p class="mt-2 text-sm text-zinc-400">Carrier, technology (2G/4G/5G) and roaming status resolved automatically from the number.</p>
+      </div>
+      <div class="card rounded-2xl p-6 hover:border-brand/30 transition-colors">
+        <div class="w-11 h-11 rounded-xl bg-brand/10 border border-brand/20 grid place-items-center text-brand"><i data-lucide="zap" class="w-6 h-6"></i></div>
+        <h3 class="mt-4 font-600 text-white">Priority delivery</h3>
+        <p class="mt-2 text-sm text-zinc-400">Urgency tiers get your trace ahead in the queue — from 24h down to under an hour.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== WIZARD ===== -->
+<section id="wizard" class="max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-24">
+
+  <!-- Progress -->
+  <div id="progressWrap" class="mb-10 hidden">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2 text-sm font-medium text-zinc-300">
+        <i data-lucide="scan" class="w-4 h-4 text-brand"></i>
+        <span id="stepTitle">Phone details</span>
+      </div>
+      <span id="stepCount" class="text-xs font-mono text-zinc-500">STEP 1 / 3</span>
+    </div>
+    <div class="h-1.5 rounded-full bg-white/10 overflow-hidden">
+      <div id="progressBar" class="h-full bg-brand transition-all duration-500" style="width:33%"></div>
+    </div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div id="page-trace">
+    <div class="text-center mb-8">
+      <h2 class="font-display font-700 text-3xl tracking-tight text-white">Start a trace</h2>
+      <p class="mt-2 text-zinc-400">Tell us the number and what you need. We handle the rest.</p>
+    </div>
+
+    <form id="traceForm" class="card rounded-2xl p-6 sm:p-8 space-y-6" novalidate>
+      <!-- Country -->
+      <div>
+        <label for="country" class="flex items-center gap-2 text-sm font-medium text-zinc-200 mb-2">
+          <i data-lucide="globe" class="w-4 h-4 text-brand"></i> Country &amp; code
+        </label>
+        <select id="country" class="focusable w-full rounded-xl bg-white/5 border border-white/10 px-4 h-12 text-white appearance-none cursor-pointer">
+        </select>
+      </div>
+
+      <!-- Number -->
+      <div>
+        <label for="number" class="flex items-center gap-2 text-sm font-medium text-zinc-200 mb-2">
+          <i data-lucide="smartphone" class="w-4 h-4 text-brand"></i> Phone number
+        </label>
+        <div class="flex gap-2">
+          <span id="codePrefix" class="inline-flex items-center h-12 px-4 rounded-xl bg-brand/10 border border-brand/30 text-brand font-mono text-sm whitespace-nowrap">+234</span>
+          <input id="number" type="tel" inputmode="numeric" autocomplete="tel"
+            placeholder="901 234 5678"
+            class="focusable flex-1 min-w-0 rounded-xl bg-white/5 border border-white/10 px-4 h-12 text-white placeholder-zinc-600 font-mono" />
+        </div>
+        <p id="numError" class="text-xs text-rose-400 mt-2 hidden"></p>
+      </div>
+
+      <!-- Network -->
+      <div>
+        <label for="network" class="flex items-center gap-2 text-sm font-medium text-zinc-200 mb-2">
+          <i data-lucide="radio-tower" class="w-4 h-4 text-brand"></i> Network / carrier
+        </label>
+        <select id="network" class="focusable w-full rounded-xl bg-white/5 border border-white/10 px-4 h-12 text-white appearance-none cursor-pointer">
+        </select>
+        <p class="text-xs text-zinc-500 mt-2">Not sure? Pick <span class="text-zinc-400">Unknown</span> — we detect it automatically.</p>
+      </div>
+
+      <hr class="border-white/5" />
+
+      <!-- Additional info -->
+      <div>
+        <p class="flex items-center gap-2 text-sm font-medium text-zinc-200 mb-3">
+          <i data-lucide="clipboard-list" class="w-4 h-4 text-brand"></i> What do you need?
+        </p>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label for="purpose" class="block text-xs font-medium text-zinc-400 mb-1.5">Purpose</label>
+            <select id="purpose" class="focusable w-full rounded-xl bg-white/5 border border-white/10 px-4 h-11 text-white appearance-none cursor-pointer">
+              <option>Verify caller identity</option>
+              <option>Locate current position</option>
+              <option>Trace recent calls</option>
+              <option>Identify spam / SMS</option>
+              <option>Lost device recovery</option>
+              <option>Billing dispute</option>
+            </select>
+          </div>
+          <div>
+            <label for="urgency" class="block text-xs font-medium text-zinc-400 mb-1.5">Urgency</label>
+            <select id="urgency" class="focusable w-full rounded-xl bg-white/5 border border-white/10 px-4 h-11 text-white appearance-none cursor-pointer">
+              <option value="std">Standard · delivered in 24h</option>
+              <option value="pri">Priority · delivered in 4h</option>
+              <option value="crit">Critical · delivered in 1h</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label for="notes" class="block text-xs font-medium text-zinc-400 mb-1.5">Notes for our analysts <span class="text-zinc-600">(optional)</span></label>
+        <textarea id="notes" rows="2" placeholder="Anything unusual — repeated calls, missed deliveries, suspected fraud…"
+          class="focusable w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-zinc-600 resize-none"></textarea>
+      </div>
+
+      <button type="submit" class="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-brand text-[#06121a] font-semibold hover:bg-brand-400 transition-all focusable">
+        Continue to pricing <i data-lucide="arrow-right" class="w-5 h-5"></i>
+      </button>
+    </form>
+  </div>
+
+  <!-- STEP 2: PRICING -->
+  <div id="page-plan" class="hidden">
+    <div id="planSummary" class="card rounded-2xl p-5 mb-6 flex items-center justify-between gap-4">
+      <div class="min-w-0">
+        <p class="text-xs text-zinc-500">Tracing</p>
+        <p id="sumLine" class="font-mono text-white truncate"></p>
+        <p id="sumMeta" class="text-xs text-zinc-400 mt-0.5"></p>
+      </div>
+      <button onclick="backToTrace()" class="shrink-0 text-sm text-brand hover:underline">Edit</button>
+    </div>
+
+    <div class="text-center mb-8">
+      <h2 class="font-display font-700 text-3xl tracking-tight text-white">Choose your trace</h2>
+      <p class="mt-2 text-zinc-400">Pick the depth you need. Pay securely via OPay.</p>
+    </div>
+
+    <div id="planGrid" class="grid gap-4 md:grid-cols-3"></div>
+  </div>
+
+  <!-- STEP 3: PAYMENT -->
+  <div id="page-pay" class="hidden">
+    <div class="text-center mb-8">
+      <h2 class="font-display font-700 text-3xl tracking-tight text-white">Secure payment</h2>
+      <p class="mt-2 text-zinc-400">Complete your OPay transfer, then confirm below.</p>
+    </div>
+
+    <div id="paySummary" class="card rounded-2xl p-5 mb-6 flex items-center justify-between gap-4">
+      <div class="min-w-0">
+        <p class="text-xs text-zinc-500">Order</p>
+        <p id="payLine" class="font-white text-white truncate"></p>
+        <p id="payPlan" class="text-sm text-zinc-400 mt-0.5"></p>
+      </div>
+      <div class="text-right shrink-0">
+        <p class="text-xs text-zinc-500">Total</p>
+        <p id="payTotal" class="font-display font-700 text-2xl text-brand"></p>
+      </div>
+    </div>
+
+    <div class="card rounded-2xl p-6 sm:p-8">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-11 h-11 rounded-xl bg-brand/10 border border-brand/20 grid place-items-center text-brand"><i data-lucide="wallet" class="w-6 h-6"></i></div>
+        <div>
+          <p class="font-600 text-white">Pay with OPay</p>
+          <p class="text-xs text-zinc-500">Transfer to the account below</p>
+        </div>
+      </div>
+
+      <div class="rounded-xl bg-white/5 border border-white/10 divide-y divide-white/5 overflow-hidden">
+        <div class="flex items-center justify-between gap-3 px-4 py-3.5">
+          <div class="min-w-0">
+            <p class="text-xs text-zinc-500">Account number</p>
+            <p class="font-mono text-white text-lg tracking-wide">0906 676 0078</p>
+          </div>
+          <button data-copy="09066760078" class="copyBtn shrink-0 inline-flex items-center gap-1.5 text-xs px-3 h-8 rounded-lg border border-white/10 text-zinc-300 hover:bg-white/5 hover:text-white transition-colors focusable">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy
+          </button>
+        </div>
+        <div class="flex items-center justify-between gap-3 px-4 py-3.5">
+          <div class="min-w-0">
+            <p class="text-xs text-zinc-500">Account name</p>
+            <p class="text-white font-medium">Christiana Godwin Okon</p>
+          </div>
+          <button data-copy="Christiana Godwin Okon" class="copyBtn shrink-0 inline-flex items-center gap-1.5 text-xs px-3 h-8 rounded-lg border border-white/10 text-zinc-300 hover:bg-white/5 hover:text-white transition-colors focusable">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy
+          </button>
+        </div>
+        <div class="flex items-center justify-between gap-3 px-4 py-3.5">
+          <div class="min-w-0">
+            <p class="text-xs text-zinc-500">Platform</p>
+            <p class="text-white font-medium">OPay · <span id="payAmountLabel" class="text-brand"></span></p>
+          </div>
+        </div>
+      </div>
+
+      <ol class="mt-6 space-y-3 text-sm text-zinc-400">
+        <li class="flex gap-3"><span class="grid place-items-center w-6 h-6 rounded-full bg-brand/10 border border-brand/20 text-brand text-xs font-semibold">1</span> Transfer the exact amount above to the OPay account.</li>
+        <li class="flex gap-3"><span class="grid place-items-center w-6 h-6 rounded-full bg-brand/10 border border-brand/20 text-brand text-xs font-semibold">2</span> Take a screenshot of the successful transaction.</li>
+        <li class="flex gap-3"><span class="grid place-items-center w-6 h-6 rounded-full bg-brand/10 border border-brand/20 text-brand text-xs font-semibold">3</span> Tap confirm — your live trace unlocks instantly.</li>
+      </ol>
+
+      <div class="mt-6 grid sm:grid-cols-2 gap-3">
+        <a id="waReceipt" href="#" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2 h-12 rounded-xl border border-emerald-400/30 bg-emerald-400/10 text-emerald-300 font-medium hover:bg-emerald-400/15 transition-colors focusable">
+          <i data-lucide="message-circle" class="w-5 h-5"></i> Send receipt on WhatsApp
+        </a>
+        <button id="confirmPay" class="inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-brand text-[#06121a] font-semibold hover:bg-brand-400 transition-all focusable">
+          <i data-lucide="check" class="w-5 h-5"></i> I've paid — unlock trace
+        </button>
+      </div>
+      <p class="mt-4 text-xs text-zinc-500 text-center">Prefer to pay another way? <a id="waAlt" href="#" target="_blank" rel="noopener" class="text-brand hover:underline">Message us on WhatsApp</a> with your receipt.</p>
+    </div>
+  </div>
+
+  <!-- STEP 4: LIVE TRACKER -->
+  <div id="page-track" class="hidden">
+    <div class="card rounded-2xl overflow-hidden fadeup">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-white/5">
+        <div class="flex items-center gap-2.5">
+          <span class="grid place-items-center w-9 h-9 rounded-xl bg-emerald-400/10 border border-emerald-400/30 text-emerald-300"><i data-lucide="activity" class="w-5 h-5"></i></span>
+          <div>
+            <p class="font-600 text-white leading-tight">Live trace</p>
+            <p id="trkNumber" class="text-xs font-mono text-zinc-500"></p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-medium text-emerald-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 dot-pulse"></span> STREAMING
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-[1.15fr_.85fr]">
+        <!-- Radar -->
+        <div class="relative aspect-square bg-[#0b0f14] grid-bg overflow-hidden">
+          <div class="scanline"></div>
+          <div class="absolute inset-[9%]">
+            <div class="sweep"></div>
+            <div class="ring-concentric" style="box-shadow: inset 0 0 0 1px rgba(34,211,238,.18)"></div>
+            <div class="ring-concentric scale-[.74]" style="box-shadow: inset 0 0 0 1px rgba(34,211,238,.14)"></div>
+            <div class="ring-concentric scale-[.48]" style="box-shadow: inset 0 0 0 1px rgba(34,211,238,.14)"></div>
+            <div class="ring-concentric scale-[.24]" style="box-shadow: inset 0 0 0 1px rgba(34,211,238,.14)"></div>
+            <div class="absolute inset-x-0 top-1/2 h-px bg-brand/15"></div>
+            <div class="absolute inset-y-0 left-1/2 w-px bg-brand/15"></div>
+            <div id="trkPing" class="ping-ring" style="width:70px;height:70px;left:calc(50% - 35px);top:calc(50% - 35px)"></div>
+            <div id="trkBlip" class="blip" style="left:50%;top:50%"></div>
+          </div>
+          <div class="absolute top-3 left-3 text-[10px] font-mono text-zinc-500 bg-black/40 px-2 py-1 rounded border border-white/5">RADAR · TOWER TRIANGULATION</div>
+        </div>
+
+        <!-- Telemetry -->
+        <div class="p-5 space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-xl bg-white/5 border border-white/5 p-3">
+              <p class="text-[11px] text-zinc-500 flex items-center gap-1.5"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i> Position</p>
+              <p id="trkCoords" class="font-mono text-sm text-white mt-1">—</p>
+            </div>
+            <div class="rounded-xl bg-white/5 border border-white/5 p-3">
+              <p class="text-[11px] text-zinc-500 flex items-center gap-1.5"><i data-lucide="target" class="w-3.5 h-3.5"></i> Accuracy</p>
+              <p id="trkAcc" class="font-mono text-sm text-white mt-1">—</p>
+            </div>
+            <div class="rounded-xl bg-white/5 border border-white/5 p-3">
+              <p class="text-[11px] text-zinc-500 flex items-center gap-1.5"><i data-lucide="radio-tower" class="w-3.5 h-3.5"></i> Network</p>
+              <p id="trkNet" class="font-mono text-sm text-white mt-1">—</p>
+            </div>
+            <div class="rounded-xl bg-white/5 border border-white/5 p-3">
+              <p class="text-[11px] text-zinc-500 flex items-center gap-1.5"><i data-lucide="clock" class="w-3.5 h-3.5"></i> Last ping</p>
+              <p id="trkPingTime" class="font-mono text-sm text-white mt-1">—</p>
+            </div>
+          </div>
+
+          <!-- Signal -->
+          <div class="rounded-xl bg-white/5 border border-white/5 p-3 flex items-end justify-between">
+            <div>
+              <p class="text-[11px] text-zinc-500 flex items-center gap-1.5"><i data-lucide="wifi" class="w-3.5 h-3.5"></i> Signal</p>
+              <p id="trkSigText" class="font-600 text-white text-sm mt-1">Acquiring…</p>
+            </div>
+            <div class="flex items-end gap-1 h-8">
+              <span id="sb1" class="bar w-1.5 rounded-sm bg-white/20" style="height:25%"></span>
+              <span id="sb2" class="bar w-1.5 rounded-sm bg-white/20" style="height:45%"></span>
+              <span id="sb3" class="bar w-1.5 rounded-sm bg-white/20" style="height:65%"></span>
+              <span id="sb4" class="bar w-1.5 rounded-sm bg-white/20" style="height:85%"></span>
+            </div>
+          </div>
+
+          <!-- Activity feed -->
+          <div class="rounded-xl bg-white/5 border border-white/5 p-3">
+            <p class="text-[11px] text-zinc-500 flex items-center gap-1.5 mb-2"><i data-lucide="activity" class="w-3.5 h-3.5"></i> Activity</p>
+            <div id="trkFeed" class="feed h-28 overflow-y-auto space-y-1.5 pr-1 text-xs font-mono"></div>
+          </div>
+
+          <a id="waFinal" href="#" target="_blank" rel="noopener" class="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl border border-white/10 text-zinc-200 hover:bg-white/5 transition-colors focusable">
+            <i data-lucide="message-circle" class="w-4 h-4"></i> Questions? WhatsApp our team
+          </a>
+        </div>
+      </div>
+    </div>
+    <p class="text-center text-xs text-zinc-600 mt-4">Live telemetry shown is indicative and refined by our analysts before final delivery.</p>
+  </div>
+
+</section>
+</main>
+
+<!-- ===== FOOTER / CONTACT ===== -->
+<footer id="contact" class="border-t border-white/5 bg-[#0a0d12]">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-12">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      <div class="flex items-center gap-2.5">
+        <span class="grid place-items-center w-9 h-9 rounded-xl bg-brand/10 border border-brand/30 text-brand"><i data-lucide="crosshair" class="w-5 h-5"></i></span>
+        <span class="font-display font-700 text-lg text-white">Trace<span class="text-brand">Nova</span></span>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <a id="waFoot" href="#" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 h-10 rounded-lg bg-emerald-400/10 border border-emerald-400/30 text-emerald-300 text-sm font-medium hover:bg-emerald-400/15 transition-colors">
+          <i data-lucide="message-circle" class="w-4 h-4"></i> +234 906 676 0078
+        </a>
+        <a href="#" onclick="startTrace(event)" class="inline-flex items-center gap-2 px-4 h-10 rounded-lg border border-white/10 text-zinc-200 text-sm hover:bg-white/5 transition-colors">
+          <i data-lucide="phone" class="w-4 h-4"></i> Track a number
+        </a>
+      </div>
+    </div>
+    <p class="mt-8 text-xs text-zinc-600">© <span id="year"></span> TraceNova — Precision number intelligence. All rights reserved.</p>
+  </div>
+</footer>
+
+<!-- Floating WhatsApp -->
+<a id="waFloat" href="#" target="_blank" rel="noopener" class="fixed bottom-5 right-5 z-50 grid place-items-center w-14 h-14 rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 hover:scale-105 transition-transform glow">
+  <i data-lucide="message-circle" class="w-7 h-7"></i>
+</a>
+
+<!-- Toast -->
+<div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 hidden"></div>
+
+<!-- Verifying overlay -->
+<div id="overlay" class="fixed inset-0 z-[60] hidden place-items-center bg-black/70 backdrop-blur-sm">
+  <div class="card rounded-2xl p-8 text-center popin">
+    <div class="mx-auto w-12 h-12 rounded-full border-2 border-brand/30 border-t-brand animate-spin"></div>
+    <p class="mt-4 font-600 text-white">Verifying your payment…</p>
+    <p class="text-sm text-zinc-500 mt-1">Matching your OPay transaction.</p>
+  </div>
+</div>
+
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script>
+/* ---------------- Data ---------------- */
+const OWNER_WA = '2349066760078';
+const COUNTRIES = [
+  {code:'+234',name:'Nigeria',flag:'🇳🇬'},
+  {code:'+233',name:'Ghana',flag:'🇬🇭'},
+  {code:'+254',name:'Kenya',flag:'🇰🇪'},
+  {code:'+250',name:'Rwanda',flag:'🇷🇼'},
+  {code:'+27', name:'South Africa',flag:'🇿🇦'},
+  {code:'+253',name:'Eritrea',flag:'🇪🇷'},
+  {code:'+211',name:'Sudan',flag:'🇸🇩'},
+  {code:'+256',name:'Uganda',flag:'🇺🇬'},
+  {code:'+243',name:'DR Congo',flag:'🇨🇩'},
+  {code:'+221',name:'Senegal',flag:'🇸🇳'},
+  {code:'+216',name:'Tunisia',flag:'🇹🇳'},
+  {code:'+1', name:'United States',flag:'🇺🇸'},
+  {code:'+44', name:'United Kingdom',flag:'🇬🇧'},
+  {code:'+91', name:'India',flag:'🇮🇳'},
+  {code:'+65', name:'Singapore',flag:'🇸🇬'},
+  {code:'+971',name:'UAE',flag:'🇦🇪'},
+];
+const NETWORKS = {
+  '+234':['MTN','Airtel','Glo','9mobile','Unknown'],
+  '+233':['MTN','Telecel','AirtelTigo','Unknown'],
+  '+254':['Safaricom','Airtel','Telkom','Unknown'],
+  '+250':['MTN','Airtel','Unknown'],
+  '+27':['Vodacom','MTN','Cell C','Telkom','Unknown'],
+  '+253':['EriTel','HC','Unknown'],
+  '+211':['Zain','MTN','Sudani','Unknown'],
+  '+256':['MTN','Airtel','Uganda Telecom','Unknown'],
+  '+243':['Orange','Airtel','M-Tigo','Unknown'],
+  '+221':['Orange','Expresso','Free','Unknown'],
+  '+216':['Ooredoo','Tunisie Telecom','Carthage','Unknown'],
+  '+1':['Verizon','AT&T','T-Mobile','Unknown'],
+  '+44':['O2','Vodafone','EE','Three','Unknown'],
+  '+91':['Jio','Airtel','Vi','BSNL','Unknown'],
+  '+65':['Singtel','StarHub','M1','Unknown'],
+  '+971':['Etisalat','du','Unknown'],
+};
+const PLANS = [
+  { id:'lite', name:'Lite Trace', price:2000, icon:'zap', tagline:'Validation & risk',
+    features:['Number & format validation','Carrier + network detected','Risk / spam score','Device type estimate'] },
+  { id:'full', name:'Full Location', price:4500, icon:'map-pin', tagline:'Live positioning', featured:true,
+    features:['Everything in Lite','Live coordinates stream','Last-ping + tower ID','Regional breakdown','24h analyst support'] },
+  { id:'corp', name:'Corporate Deep-Dive', price:9000, icon:'shield-check', tagline:'Forensic report',
+    features:['Everything in Full','Call/SMS timeline','Associated devices','PDF forensic report','Priority 1h delivery'] },
+];
+const DISTRICTS = ['Metro Sector','Harbour Zone','Central District','North Grid','East Corridor','Airport Precinct'];
+
+/* ---------------- State ---------------- */
+let state = JSON.parse(localStorage.getItem('tracenova')||'{}') || {};
+state = Object.assign({ countryCode:'+234', country:'Nigeria', number:'', network:'', purpose:'', urgency:'', notes:'', plan:null }, state);
+function save(){ localStorage.setItem('tracenova', JSON.stringify(state)); }
+
+/* ---------------- Elements ---------------- */
+const $ = s => document.querySelector(s);
+let trackerTimer=null, feedItems=[];
+
+/* ---------------- Init ---------------- */
+document.addEventListener('DOMContentLoaded', ()=>{
+  buildCountries();
+  buildNetworks(state.countryCode);
+  // restore
+  $('#number').value = state.number.replace(/^\+?\d{2,4}\s*/,'');
+  $('#network').value = state.network;
+  $('#purpose').value = state.purpose;
+  $('#urgency').value = state.urgency;
+  $('#notes').value = state.notes;
+  bindWa();
+  lucide.createIcons();
+});
+
+function buildCountries(){
+  const sel=$('#country');
+  sel.innerHTML='';
+  COUNTRIES.forEach(c=>{
+    const o=document.createElement('option');
+    o.value=c.code; o.textContent=`${c.flag} ${c.name} (${c.code})`;
+    if(c.code===state.countryCode) o.selected=true;
+    sel.appendChild(o);
+  });
+  syncCodePrefix();
+}
+function syncCodePrefix(){
+  const c=COUNTRIES.find(x=>x.code===state.countryCode)||COUNTRIES[0];
+  $('#codePrefix').textContent=c.code;
+}
+function buildNetworks(code){
+  const sel=$('#network');
+  const list=NETWORKS[code]||['Mobile carrier','Telecom','ISP / Fiber','VoIP','Unknown'];
+  sel.innerHTML='';
+  list.forEach(n=>{
+    const o=document.createElement('option'); o.value=n; o.textContent=n;
+    if(n===state.network) o.selected=true;
+    sel.appendChild(o);
+  });
+}
+$('#country').addEventListener('change', e=>{
+  const c=COUNTRIES.find(x=>x.code===e.target.value);
+  state.countryCode=e.target.value; state.country=c?c.name:'Unknown';
+  syncCodePrefix(); buildNetworks(e.target.value); save();
+});
+['number','purpose','urgency','notes'].forEach(id=>{
+  $('#'+id).addEventListener('input', e=>{ state[id]=e.target.value.trim(); save(); });
+});
+$('#network').addEventListener('change', e=>{ state.network=e.target.value; save(); });
+
+/* ---------------- Navigation ---------------- */
+const PAGES={ trace:1, plan:2, pay:3, track:4 };
+function showPage(name){
+  ['trace','plan','pay','track'].forEach(p=> $('#page-'+p).classList.toggle('hidden', p!==name));
+  const step=PAGES[name];
+  const pw=$('#progressWrap');
+  pw.classList.toggle('hidden', name==='track');
+  if(name!=='track'){
+    $('#progressBar').style.width=(step/3*100)+'%';
+    $('#stepCount').textContent=`STEP ${step} / 3`;
+    const titles={trace:'Phone details',plan:'Choose your trace',pay:'Secure payment'};
+    $('#stepTitle').textContent=titles[name]||'';
+  }
+  window.scrollTo({top:$('#wizard').offsetTop-70, behavior:'smooth'});
+  if(name==='track') startTracker(); else stopTracker();
+}
+function startTrace(e){ if(e)e.preventDefault(); showPage('trace'); }
+function backToTrace(){ showPage('trace'); }
+
+/* ---------------- Step 1 -> 2 ---------------- */
+$('#traceForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const num=$('#number').value.replace(/\D/g,'');
+  const err=$('#numError');
+  if(num.length<7){ err.textContent='Please enter a valid number (at least 7 digits).'; err.classList.remove('hidden'); return; }
+  err.classList.add('hidden');
+  state.number=num; state.network=$('#network').value;
+  state.purpose=$('#purpose').value; state.urgency=$('#urgency').value; state.notes=$('#notes').value;
+  save();
+  renderPlanSummary();
+  renderPlans();
+  lucide.createIcons();
+  showPage('plan');
+});
+
+function fmt(n){ return '₦'+Number(n).toLocaleString('en-NG'); }
+function renderPlanSummary(){
+  const net=state.network==='Unknown'?'auto-detect':state.network;
+  $('#sumLine').textContent=`${state.countryCode} ${state.number}`;
+  $('#sumMeta').textContent=`${state.country} · ${net} · ${state.purpose}`;
+}
+
+/* ---------------- Plans ---------------- */
+function renderPlans(){
+  const grid=$('#planGrid'); grid.innerHTML='';
+  PLANS.forEach(p=>{
+    const sel = state.plan===p.id;
+    const el=document.createElement('button');
+    el.type='button';
+    el.className=`popin text-left rounded-2xl p-5 border transition-all focusable ${sel?'bg-brand/10 border-brand glow':'card hover:border-brand/30'} ${p.featured&&!sel?'ring-1 ring-brand/40':''}`;
+    el.innerHTML=`
+      <div class="flex items-center justify-between">
+        <span class="grid place-items-center w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 text-brand"><i data-lucide="${p.icon}" class="w-5 h-5"></i></span>
+        ${p.featured?'<span class="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full bg-brand text-[#06121a]">Popular</span>':''}
+      </div>
+      <h3 class="mt-4 font-600 text-white">${p.name}</h3>
+      <p class="text-xs text-zinc-500">${p.tagline}</p>
+      <p class="mt-3 font-display font-700 text-2xl text-white">${fmt(p.price)}</p>
+      <ul class="mt-4 space-y-2 text-sm text-zinc-300">
+        ${p.features.map(f=>`<li class="flex gap-2"><i data-lucide="check" class="w-4 h-4 text-brand shrink-0 mt-0.5"></i>${f}</li>`).join('')}
+      </ul>
+      <span class="mt-5 inline-flex w-full items-center justify-center h-10 rounded-xl ${sel?'bg-brand text-[#06121a] font-semibold':'border border-white/10 text-zinc-200 hover:bg-white/5'} font-medium">
+        ${sel?'Selected':'Select'}
+      </span>`;
+    el.addEventListener('click', ()=>{ state.plan=p.id; save(); renderPlans(); lucide.createIcons(); });
+    grid.appendChild(el);
+  });
+  // continue
+  let cont=$('#planContinue');
+  if(!cont){
+    cont=document.createElement('button');
+    cont.id='planContinue';
+    cont.className='mt-6 w-full h-12 rounded-xl bg-brand text-[#06121a] font-semibold hover:bg-brand-400 transition-colors focusable inline-flex items-center justify-center gap-2';
+    cont.innerHTML='Continue to payment <i data-lucide="arrow-right" class="w-5 h-5"></i>';
+    cont.disabled=true;
+    cont.onclick=()=>{ if(state.plan){ renderPay(); lucide.createIcons(); showPage('pay'); } };
+    grid.parentElement.after(cont);
+  }
+  cont.disabled=!state.plan;
+}
+
+/* ---------------- Payment ---------------- */
+function planObj(){ return PLANS.find(p=>p.id===state.plan); }
+function renderPay(){
+  const p=planObj(); if(!p) return;
+  $('#payLine').textContent=`${state.countryCode} ${state.number}`;
+  $('#payPlan').textContent=`${p.name} · ${state.purpose}`;
+  $('#payTotal').textContent=fmt(p.price);
+  $('#payAmountLabel').textContent=fmt(p.price);
+  const msg=encodeURIComponent(
+`Hi TraceNova 👋 I just paid for "${p.name}".
+Number: ${state.countryCode} ${state.number}
+Network: ${state.network}
+Purpose: ${state.purpose}
+Urgency: ${urgencyLabel()}
+Please confirm and unlock my trace.`);
+  $('#waReceipt').href=`https://wa.me/${OWNER_WA}?text=${msg}`;
+  bindWa('#waAlt','#waFoot');
+  lucide.createIcons();
+}
+function urgencyLabel(){ return {std:'Standard (24h)',pri:'Priority (4h)',crit:'Critical (1h)'}[state.urgency]||'Standard'; }
+
+/* Copy buttons */
+document.addEventListener('click', e=>{
+  const b=e.target.closest('.copyBtn'); if(!b) return;
+  navigator.clipboard.writeText(b.dataset.copy).then(()=>{
+    const old=b.innerHTML; b.innerHTML='<i data-lucide="check" class="w-3.5 h-3.5 text-brand"></i> Copied';
+    setTimeout(()=>{ b.innerHTML=old; lucide.createIcons(); },1600);
+  });
+});
+
+/* Confirm payment -> verifying -> tracker */
+$('#confirmPay').addEventListener('click', ()=>{
+  const ov=$('#overlay'); ov.classList.remove('hidden'); ov.classList.add('grid');
+  setTimeout(()=>{
+    ov.classList.add('hidden'); ov.classList.remove('grid');
+    initTrackerData();
+    showPage('track');
+    showToast('Payment verified — live trace unlocked ✅');
+  }, 2200);
+});
+
+/* ---------------- Tracker ---------------- */
+function initTrackerData(){
+  const p=planObj();
+  feedItems=[];
+  feedLog('Handshake established with carrier');
+  setTimeout(()=>feedLog('Resolving network & tower geometry'), 900);
+  $('#trkNumber').textContent=`${state.countryCode} ${state.number}`;
+  $('#trkNet').textContent=state.network==='Unknown'?'Auto-detecting…':state.network;
+  const msg=encodeURIComponent(`TraceNova — my trace for ${state.countryCode} ${state.number} (${p?p.name:''}) is running. Thanks!`);
+  $('#waFinal').href=`https://wa.me/${OWNER_WA}?text=${msg}`;
+  lucide.createIcons();
+}
+
+function startTracker(){
+  stopTracker();
+  const blip=$('#trkBlip');
+  // scatter blip within safe zone
+  blip.style.left=(38+Math.random()*24)+'%';
+  blip.style.top=(38+Math.random()*24)+'%';
+  // ping follows blip
+  const ping=$('#trkPing');
+  ping.style.left=`calc(${blip.style.left} - 35px)`;
+  ping.style.top=`calc(${blip.style.top} - 35px)`;
+
+  let acc=1400;
+  let sig=1;
+  const base={lat:6.5244,lng:3.3792};
+
+  trackerTimer=setInterval(()=>{
+    // blip drift
+    const nx=parseFloat(blip.style.left)+(Math.random()*4-2);
+    const ny=parseFloat(blip.style.top)+(Math.random()*4-2);
+    blip.style.left=Math.max(30,Math.min(70,nx))+'%';
+    blip.style.top=Math.max(30,Math.min(70,ny))+'%';
+    ping.style.left=`calc(${blip.style.left} - 35px)`;
+    ping.style.top=`calc(${blip.style.top} - 35px)`;
+
+    // coords
+    const la=(base.lat+(Math.random()*0.004-0.002)).toFixed(4);
+    const ln=(base.lng+(Math.random()*0.004-0.002)).toFixed(4);
+    $('#trkCoords').textContent=`${la}, ${ln}`;
+
+    // accuracy tightens
+    acc=Math.max(24, acc-Math.floor(Math.random()*160));
+    $('#trkAcc').textContent=acc>1000?(acc/1000).toFixed(1)+' km':acc+' m';
+
+    // signal ramps up
+    if(sig<4 && Math.random()>0.4) sig++;
+    setSignal(sig);
+    $('#trkSigText').textContent=sig>=4?'Strong · Locked':sig>=3?'Good':sig>=2?'Fair':'Weak';
+
+    // ping time
+    $('#trkPingTime').textContent=timeAgo(Date.now()-Math.floor(Math.random()*4000));
+
+    // network resolves after a bit
+    if(state.network==='Unknown'){
+      const list=(NETWORKS[state.countryCode]||[]).filter(n=>n!=='Unknown');
+      if(list.length && Math.random()>0.5) $('#trkNet').textContent=list[Math.floor(Math.random()*list.length)];
+    }
+  }, 1500);
+
+  // scripted feed
+  const script=[
+    'GPS fix acquired — refining',
+    'Triangulating 3 tower sectors',
+    'Device online · roaming off',
+    'Position locked · streaming live',
+  ];
+  let i=0;
+  const iv=setInterval(()=>{ if(i<script.length){ feedLog(script[i++]); } else clearInterval(iv); }, 2000);
+  trackerTimer={clear(){clearInterval(trackerTimer);clearInterval(iv);}};
+  lucide.createIcons();
+}
+function stopTracker(){ if(trackerTimer&&trackerTimer.clear) trackerTimer.clear(); trackerTimer=null; }
+
+function setSignal(level){
+  const on=['#22d3ee'];
+  ['sb1','sb2','sb3','sb4'].forEach((id,idx)=>{
+    const el=$('#'+id);
+    const active = idx < level;
+    el.style.background = active? on[0] : 'rgba(255,255,255,.18)';
+  });
+}
+function feedLog(msg){
+  feedItems.push({t:Date.now(), msg});
+  if(feedItems.length>40) feedItems.shift();
+  const el=$('#trkFeed');
+  const row=document.createElement('div');
+  row.className='flex gap-2 text-zinc-400';
+  row.innerHTML=`<span class="text-zinc-600 shrink-0">${new Date().toLocaleTimeString('en-GB',{hour12:false})}</span><span class="text-zinc-300 truncate">${msg}</span>`;
+  el.appendChild(row); el.scrollTop=el.scrollHeight;
+}
+function timeAgo(ms){ const s=Math.round(ms/1000); if(s<1)return'just now'; if(s<60)return s+'s ago'; const m=Math.floor(s/60); return m<60?m+'m ago':'now'; }
+
+/* ---------------- Toast ---------------- */
+function showToast(msg){
+  const t=$('#toast');
+  t.innerHTML=`<div class="toast flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-400/15 border border-emerald-400/30 text-emerald-200 text-sm shadow-lg"><i data-lucide="badge-check" class="w-4 h-4"></i>${msg}</div>`;
+  t.classList.remove('hidden');
+  lucide.createIcons();
+  clearTimeout(t._t);
+  t._t=setTimeout(()=>t.classList.add('hidden'),3200);
+}
+
+/* ---------------- WhatsApp links ---------------- */
+function bindWa(...extra){
+  const home=encodeURIComponent('Hi TraceNova 👋 I want to trace a number.');
+  ['#waNav','#waFloat',...extra].forEach(sel=>{ const el=$(sel); if(el) el.href=`https://wa.me/${OWNER_WA}?text=${home}`; });
+}
+
+/* ---------------- Misc ---------------- */
+$('#year').textContent=new Date().getFullYear();
+</script>
+</body>
+</html>
